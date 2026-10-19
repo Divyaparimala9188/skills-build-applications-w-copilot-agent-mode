@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express from 'express';
+import mongoose from 'mongoose';
 import { apiRouter } from './routes/api.js';
 
 export function createApp() {
@@ -9,7 +10,10 @@ export function createApp() {
   app.get('/health', (_request, response) => response.json({ ok: true }));
   app.use('/api', apiRouter);
   app.use((error: Error & { status?: number }, _request: express.Request, response: express.Response, _next: express.NextFunction) => {
-    response.status(error.status ?? 500).json({ error: error.message });
+    let status = error.status;
+    if (!status && (error instanceof mongoose.Error.ValidationError || error instanceof mongoose.Error.CastError)) status = 400;
+    if (!status && (error as Error & { code?: number }).code === 11000) status = 409;
+    response.status(status ?? 500).json({ error: error.message });
   });
   return app;
 }
